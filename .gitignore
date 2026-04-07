@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+
+# Downloaded clips (can be large — re-download as needed)
+downloads/*.mp4
+downloads/*.mkv
+downloads/*.webm
+
+# Output video
+output/*.mp4
+output/*.mov
+
+# Music (user-supplied, not committed)
+assets/music/*.mp3
+assets/music/*.wav
+assets/music/*.m4a
+
+# Keep placeholder dirs
+!downloads/.gitkeep
+!output/.gitkeep
+!assets/music/.gitkeep
+!assets/fonts/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db
