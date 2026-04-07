@@ -51,9 +51,9 @@ OUTPUT_PATH = os.path.join(OUTPUT_DIR, "john_wall_tiktok.mp4")
 # ── YouTube highlight URLs ────────────────────────────────────────────────────
 # Add or replace with fresh URLs before running.
 YOUTUBE_URLS = [
-    "https://www.youtube.com/watch?v=5AiCEBFxJSI",  # John Wall 2019 Highlights
-    "https://www.youtube.com/watch?v=XF5oQnVCPCo",  # John Wall Top 10 Plays
-    "https://www.youtube.com/watch?v=MpGHBhGBFbQ",  # John Wall Crossovers & Dunks
-    "https://www.youtube.com/watch?v=4t1WwGE5rKs",  # John Wall Best Plays
-    "https://www.youtube.com/watch?v=0pWmFCCioK4",  # John Wall Mixtape
+    "https://www.youtube.com/watch?v=9zkcPraU6-s",  # John Wall Highlights
 ]
+
+# ── Music ─────────────────────────────────────────────────────────────────────
+# Song: "Do the John Wall" by Troop 41
+# Source: https://www.youtube.com/watch?v=meYIbAt2iaQ
