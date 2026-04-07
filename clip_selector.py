@@ -1,14 +1,11 @@
 """Map downloaded video clips onto the beat-grid cut schedule."""
 
 import random
-from moviepy.editor import VideoFileClip
+from moviepy import VideoFileClip
 
 
 def load_clips(file_paths: list[str]) -> list[VideoFileClip]:
-    """
-    Open each MP4 without its audio track (music track is used instead).
-    Returns a list of VideoFileClip objects.
-    """
+    """Open each MP4 without its audio track."""
     clips = []
     for path in file_paths:
         try:
@@ -26,22 +23,10 @@ def assign_clips_to_beats(
     seed: int = 42,
 ) -> list[dict]:
     """
-    Assign a source clip and a window within it to each beat slot.
+    Assign a source clip and window to each beat slot.
 
-    Each slot spans cut_points[i] → cut_points[i+1].
-    Clips are shuffled and assigned in round-robin order.
-    A random start offset is chosen so different parts of each clip are used.
-
-    Returns a list of dicts:
-        {
-            "clip":          VideoFileClip,
-            "src_start":     float,   offset into source clip
-            "src_end":       float,
-            "slot_start":    float,   absolute position in the final edit
-            "slot_end":      float,
-            "slot_duration": float,
-            "slow_mo":       bool,    filled in by mark_slowmo_clips()
-        }
+    Returns list of dicts with keys:
+        clip, src_start, src_end, slot_start, slot_end, slot_duration, slow_mo
     """
     if not clips:
         raise ValueError("No clips loaded — check downloads/ directory.")
@@ -61,7 +46,6 @@ def assign_clips_to_beats(
         clip = shuffled[clip_index % len(shuffled)]
         clip_index += 1
 
-        # Pick a random window inside the source clip for variety
         max_offset = max(0.0, clip.duration - slot_duration)
         src_start = rng.uniform(0, max_offset) if max_offset > 0 else 0.0
         src_end = src_start + slot_duration
@@ -83,10 +67,7 @@ def mark_slowmo_clips(
     assignments: list[dict],
     drop_regions: list[tuple[float, float]],
 ) -> list[dict]:
-    """
-    Flag assignments whose slot overlaps with a drop region.
-    These will receive slow-motion + extra zoom treatment.
-    """
+    """Flag assignments whose slot midpoint falls within a drop region."""
     for a in assignments:
         mid = (a["slot_start"] + a["slot_end"]) / 2
         for drop_start, drop_end in drop_regions:

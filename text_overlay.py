@@ -3,13 +3,12 @@
 import os
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
-from moviepy.editor import ImageClip, TextClip
+from moviepy import ImageClip, TextClip, vfx
 
 import config
 
 
 def _load_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-    """Load the project font; fall back to PIL default if TTF not found."""
     if os.path.exists(config.FONT_PATH):
         return ImageFont.truetype(config.FONT_PATH, size)
     return ImageFont.load_default()
@@ -20,24 +19,20 @@ def make_player_nameplate(
     clip_duration: float,
     position: tuple = ("center", 0.80),
 ) -> TextClip:
-    """
-    Large bold player name rendered as a TextClip.
-    Requires ImageMagick; callers should catch ImportError/OSError and
-    fall back to make_pil_text_clip().
-    """
+    """Large bold player name as a TextClip (moviepy 2.x API)."""
+    font_arg = config.FONT_PATH if os.path.exists(config.FONT_PATH) else None
     tc = (
         TextClip(
-            name,
-            fontsize=config.NAMEPLATE_FONTSIZE,
-            font=config.FONT_PATH if os.path.exists(config.FONT_PATH) else "Impact",
+            text=name,
+            font=font_arg,
+            font_size=config.NAMEPLATE_FONTSIZE,
             color="white",
             stroke_color="black",
             stroke_width=3,
+            duration=clip_duration,
         )
-        .set_duration(clip_duration)
-        .set_position(position)
-        .fadein(0.15)
-        .fadeout(0.15)
+        .with_position(position)
+        .with_effects([vfx.FadeIn(0.15), vfx.FadeOut(0.15)])
     )
     return tc
 
@@ -47,21 +42,21 @@ def make_hype_text(
     start: float,
     duration: float,
 ) -> TextClip:
-    """Centered hype text that pops on a beat and fades quickly."""
+    """Centered hype text that pops on a beat."""
+    font_arg = config.FONT_PATH if os.path.exists(config.FONT_PATH) else None
     tc = (
         TextClip(
-            text,
-            fontsize=config.HYPE_FONTSIZE,
-            font=config.FONT_PATH if os.path.exists(config.FONT_PATH) else "Impact",
+            text=text,
+            font=font_arg,
+            font_size=config.HYPE_FONTSIZE,
             color="white",
             stroke_color="black",
             stroke_width=4,
+            duration=duration,
         )
-        .set_start(start)
-        .set_duration(duration)
-        .set_position("center")
-        .fadein(0.08)
-        .fadeout(0.08)
+        .with_start(start)
+        .with_position("center")
+        .with_effects([vfx.FadeIn(0.08), vfx.FadeOut(0.08)])
     )
     return tc
 
@@ -72,15 +67,9 @@ def make_stats_card(
     duration: float,
     canvas_size: tuple[int, int] = (config.TIKTOK_WIDTH, config.TIKTOK_HEIGHT),
 ) -> ImageClip:
-    """
-    PIL-rendered stats card (no ImageMagick dependency).
-
-    Draws semi-transparent dark box with white text lines,
-    positioned in the upper-left area of the frame.
-    """
+    """PIL-rendered stats card — no ImageMagick dependency."""
     font = _load_font(config.STATS_FONTSIZE)
 
-    # Measure text to size the box
     dummy = Image.new("RGBA", (1, 1))
     draw = ImageDraw.Draw(dummy)
     line_heights = []
@@ -95,7 +84,6 @@ def make_stats_card(
     box_w = max_w + pad * 2
     box_h = sum(line_heights) + pad * 2 + 8 * (len(stats) - 1)
 
-    # Draw box + text on RGBA canvas
     card = Image.new("RGBA", (box_w, box_h), (0, 0, 0, 0))
     bg = Image.new("RGBA", (box_w, box_h), (10, 10, 10, 190))
     card.paste(bg, (0, 0))
@@ -106,20 +94,14 @@ def make_stats_card(
         draw.text((pad, y), line, font=font, fill=(255, 255, 255, 255))
         y += line_heights[i] + 8
 
-    # Paste onto a full-frame transparent canvas so position is embedded
     full = Image.new("RGBA", canvas_size, (0, 0, 0, 0))
-    x_pos = 48
-    y_pos = 160   # upper area, below TikTok UI safe zone
-    full.paste(card, (x_pos, y_pos), mask=card)
+    full.paste(card, (48, 160), mask=card)
 
     arr = np.array(full)
-    # MoviePy ImageClip expects RGB or RGBA
     clip = (
-        ImageClip(arr, ismask=False)
-        .set_start(start)
-        .set_duration(duration)
-        .fadein(0.2)
-        .fadeout(0.2)
+        ImageClip(arr, duration=duration)
+        .with_start(start)
+        .with_effects([vfx.FadeIn(0.2), vfx.FadeOut(0.2)])
     )
     return clip
 
@@ -132,46 +114,35 @@ def build_overlay_timeline(
     drop_regions: list[tuple[float, float]],
     use_imagemagick: bool = True,
 ) -> list:
-    """
-    Build the complete list of text/image overlay clips timed to the beat grid.
-
-    Layout:
-      - Player nameplate: first 2.5s and last 3s of the edit
-      - Hype texts: one per drop region (at the drop start beat)
-      - Stats card: once, ~15s into the edit (or midpoint if shorter)
-    """
+    """Build all overlay clips timed to the beat grid."""
     overlays = []
-    hype_cycle = list(hype_texts)
 
     # ── Player nameplate ─────────────────────────────────────────────────────
     if use_imagemagick:
         try:
             overlays.append(make_player_nameplate(config.PLAYER_NAME, 2.5))
-            # End nameplate
             end_plate = (
                 make_player_nameplate(config.PLAYER_NAME, 3.0)
-                .set_start(max(0, total_duration - 3.0))
+                .with_start(max(0.0, total_duration - 3.0))
             )
             overlays.append(end_plate)
         except Exception as exc:
-            print(f"[text_overlay] ImageMagick nameplate failed ({exc}), skipping")
+            print(f"[text_overlay] Nameplate failed ({exc}), skipping")
 
     # ── Hype texts at drop regions ────────────────────────────────────────────
     hype_idx = 0
-    for drop_start, drop_end in drop_regions:
-        if hype_idx >= len(hype_cycle):
+    for drop_start, _ in drop_regions:
+        if hype_idx >= len(hype_texts):
             break
-        # Find the nearest beat to drop_start
         nearest_beat = min(cut_points, key=lambda t: abs(t - drop_start))
-        beat_duration = _slot_duration(cut_points, nearest_beat)
-
+        beat_dur = _slot_duration(cut_points, nearest_beat)
         if use_imagemagick:
             try:
                 overlays.append(
                     make_hype_text(
-                        hype_cycle[hype_idx % len(hype_cycle)],
+                        hype_texts[hype_idx % len(hype_texts)],
                         start=nearest_beat,
-                        duration=min(beat_duration * 2, 1.5),
+                        duration=min(beat_dur * 2, 1.5),
                     )
                 )
                 hype_idx += 1
@@ -181,16 +152,13 @@ def build_overlay_timeline(
     # ── Stats card ───────────────────────────────────────────────────────────
     stats_time = min(15.0, total_duration * 0.4)
     nearest_beat = min(cut_points, key=lambda t: abs(t - stats_time))
-    overlays.append(
-        make_stats_card(stats_lines, start=nearest_beat, duration=4.0)
-    )
+    overlays.append(make_stats_card(stats_lines, start=nearest_beat, duration=4.0))
 
     print(f"[text_overlay] Built {len(overlays)} overlay(s)")
     return overlays
 
 
 def _slot_duration(cut_points: list[float], beat_time: float) -> float:
-    """Return the duration of the slot that starts at beat_time."""
     try:
         idx = cut_points.index(beat_time)
         if idx + 1 < len(cut_points):
