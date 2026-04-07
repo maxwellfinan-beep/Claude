@@ -1,0 +1,6 @@
+yt-dlp
+moviepy>=2.0
+librosa
+numpy
+Pillow
+imageio-ffmpeg
