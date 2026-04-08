@@ -10,7 +10,7 @@ import config
 from effects import build_full_filter_chain
 
 
-def export_final(draft=False, output_name=None, style="darkwave", state=None):
+def export_final(draft=False, output_name=None, style="darkwave", state=None, title_text=None):
     """Export final video with color grade, vignette, zoom punches, and text."""
     if state is None:
         state = config.load_state()
@@ -30,7 +30,7 @@ def export_final(draft=False, output_name=None, style="darkwave", state=None):
         print("Run edit.py first to assemble the timeline.")
         sys.exit(1)
 
-    filter_chain = build_full_filter_chain(state, style=style)
+    filter_chain = build_full_filter_chain(state, style=style, title_text=title_text)
 
     cmd = [
         config.FFMPEG_BIN,

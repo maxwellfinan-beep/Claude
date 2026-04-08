@@ -42,7 +42,8 @@ def detect_beats(audio_path):
     onset_times = librosa.frames_to_time(onset_frames, sr=sr).tolist()
 
     # Clean up temp file
-    os.remove(wav_path)
+    if os.path.exists(wav_path):
+        os.remove(wav_path)
 
     tempo_val = float(tempo) if not hasattr(tempo, '__len__') else float(tempo[0])
     return {

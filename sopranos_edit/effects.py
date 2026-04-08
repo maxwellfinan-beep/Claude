@@ -109,13 +109,15 @@ def build_zoom_punch_filter(zoom_times, style="darkwave"):
     return f"{crop_filter},{scale_filter}"
 
 
-def build_text_overlay_filter(appear_time, style="darkwave"):
-    """'THE SOPRANOS' — serif, center frame. Style controls fade timing."""
+def build_text_overlay_filter(appear_time, style="darkwave", title_text=None):
+    """Text overlay — serif, center frame. Style controls fade timing. Title text is configurable."""
     s = STYLES[style]
     fade_in = s["text_fade_in"]
     hold = s["text_hold"]
     fade_out = s["text_fade_out"]
     border = s["text_border"]
+
+    text = title_text or config.TITLE_TEXT
 
     t_start = appear_time
     t_fade_in_end = t_start + fade_in
@@ -131,7 +133,7 @@ def build_text_overlay_filter(appear_time, style="darkwave"):
 
     return (
         f"drawtext="
-        f"text='{config.TITLE_TEXT}':"
+        f"text='{text}':"
         f"fontfile={config.FONT_PATH}:"
         f"fontsize={config.TITLE_FONTSIZE}:"
         f"fontcolor=white:"
@@ -143,7 +145,7 @@ def build_text_overlay_filter(appear_time, style="darkwave"):
     )
 
 
-def build_full_filter_chain(project_state, style="darkwave"):
+def build_full_filter_chain(project_state, style="darkwave", title_text=None):
     """
     Combine all filters into a single -vf string.
     Order: color grade -> vignette -> zoom punch -> text overlay
@@ -161,6 +163,6 @@ def build_full_filter_chain(project_state, style="darkwave"):
     if zoom_filter:
         filters.append(zoom_filter)
 
-    filters.append(build_text_overlay_filter(title_time, style))
+    filters.append(build_text_overlay_filter(title_time, style, title_text=title_text))
 
     return ",".join(filters)

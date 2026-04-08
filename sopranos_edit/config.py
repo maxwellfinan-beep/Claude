@@ -25,7 +25,7 @@ CRF_DRAFT = 23
 CRF_FINAL = 18
 
 # --- Text overlay ---
-TITLE_TEXT = "THE SOPRANOS"
+TITLE_TEXT = "THE SOPRANOS"  # default, overridden per edit
 FONT_PATH = "/System/Library/Fonts/Times.ttc"
 TITLE_FONTSIZE = 80
 
