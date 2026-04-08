@@ -50,14 +50,18 @@ def fit_to_square(clip, size=720):
 
 
 def build_timeline(intro_clip_path, sopranos_path, music_path, beat_map,
-                   zoom_times, intro_duration=3.0, max_montage_seconds=12):
+                   zoom_times, intro_duration=3.0, max_montage_seconds=12,
+                   flash_every_n=0, duration_ramp=False, output_name="timeline_raw",
+                   beat_step=2, music_start_offset=0.0):
     """
     Assemble edit matching TikTok reference style.
 
-    - Intro from the Sopranos clip itself (calm scene)
-    - Then rapid cuts jumping around the compilation
-    - Cuts every ~0.7-1s (not every single beat — every 2nd beat)
-    - Hard cut to black at end
+    Args:
+        flash_every_n: Insert white flash every N cuts (0=disabled)
+        duration_ramp: If True, start with shorter cuts and ramp up
+        output_name: Base name for output file
+        beat_step: Use every Nth beat (1=every beat, 2=every other, etc)
+        music_start_offset: Start music from this offset in the track (seconds)
     """
     print("Loading clips...")
     sopranos_clip = VideoFileClip(sopranos_path)
@@ -80,38 +84,45 @@ def build_timeline(intro_clip_path, sopranos_path, music_path, beat_map,
         print("Error: need at least 4 beats in beat map")
         sys.exit(1)
 
-    print(f"\nBuilding timeline...")
+    print(f"\nBuilding timeline ({output_name})...")
 
-    # --- Phase 1: Calm intro from the show (~3s) ---
+    # --- Phase 1: Calm intro ---
     actual_intro_dur = min(intro_duration, intro_source.duration - intro_start)
     intro_seg = intro_source.subclipped(intro_start, intro_start + actual_intro_dur)
     intro_seg = fit_to_square(intro_seg)
-    # Keep original audio for calm intro
     print(f"  Phase 1: Calm intro ({actual_intro_dur:.1f}s)")
 
-    # --- Phase 2: Brief black flash (0.15s) ---
+    # --- Phase 2: Brief black flash ---
     black_flash = ColorClip(
         size=(720, 720),
         color=(0, 0, 0),
         duration=0.15,
     ).with_fps(config.FPS)
 
-    # --- Phase 3: Rapid montage — every ~2nd beat for ~0.7-1s cuts ---
+    # --- Phase 3: Rapid montage ---
     beat_drop_in_timeline = actual_intro_dur + 0.15
 
-    # Use every 2nd beat for slightly longer cuts (~0.8s at 144 BPM)
+    # Build cut durations from beats using beat_step
     montage_durations = []
     elapsed = 0.0
     i = 0
-    while i < len(beats) - 2 and elapsed < max_montage_seconds:
-        # Combine 2 beats into one cut duration
-        cut_dur = beats[i + 2] - beats[i] if i + 2 < len(beats) else beats[i + 1] - beats[i]
+    while i < len(beats) - beat_step and elapsed < max_montage_seconds:
+        next_i = min(i + beat_step, len(beats) - 1)
+        cut_dur = beats[next_i] - beats[i]
         if cut_dur < 0.1:
-            i += 2
+            i += beat_step
             continue
         montage_durations.append(cut_dur)
         elapsed += cut_dur
-        i += 2
+        i += beat_step
+
+    # Apply duration ramp if enabled (shorter cuts early, longer cuts later)
+    if duration_ramp and len(montage_durations) > 4:
+        n = len(montage_durations)
+        for j in range(n):
+            # Scale from 0.7x at start to 1.3x at end
+            scale = 0.7 + 0.6 * (j / (n - 1))
+            montage_durations[j] *= scale
 
     num_segments = len(montage_durations)
 
@@ -130,20 +141,35 @@ def build_timeline(intro_clip_path, sopranos_path, music_path, beat_map,
 
     random.shuffle(jump_points)
 
-    # Build segments
-    sopranos_segments = []
-    for jump_pt, cut_dur in zip(jump_points, montage_durations):
+    # Build segments with optional flash transitions
+    white_flash = None
+    if flash_every_n > 0:
+        white_flash = ColorClip(
+            size=(720, 720),
+            color=(255, 255, 255),
+            duration=0.08,
+        ).with_fps(config.FPS)
+
+    montage_clips = []
+    for seg_idx, (jump_pt, cut_dur) in enumerate(zip(jump_points, montage_durations)):
         seg_end = min(jump_pt + cut_dur + 0.05, src_duration - 0.1)
         seg = sopranos_clip.subclipped(jump_pt, seg_end)
         seg = fit_to_square(seg)
-        sopranos_segments.append(seg)
+        montage_clips.append(seg)
 
-    total_sopranos_dur = sum(s.duration for s in sopranos_segments)
+        # Insert white flash between cuts
+        if flash_every_n > 0 and (seg_idx + 1) % flash_every_n == 0 and seg_idx < num_segments - 1:
+            montage_clips.append(white_flash)
+
+    total_sopranos_dur = sum(s.duration for s in montage_clips if hasattr(s, 'duration'))
     print(f"  Phase 2: {num_segments} rapid-cut segments ({total_sopranos_dur:.1f}s)")
     print(f"  Beat drop at: {beat_drop_in_timeline:.1f}s")
     print(f"  Avg cut length: {total_sopranos_dur/num_segments:.2f}s")
+    if flash_every_n > 0:
+        flash_count = sum(1 for i in range(num_segments - 1) if (i + 1) % flash_every_n == 0)
+        print(f"  Flash transitions: {flash_count}")
 
-    sopranos_assembly = concatenate_videoclips(sopranos_segments, method="compose")
+    sopranos_assembly = concatenate_videoclips(montage_clips, method="compose")
     sopranos_no_audio = sopranos_assembly.without_audio()
 
     # --- Assemble full video ---
@@ -158,8 +184,8 @@ def build_timeline(intro_clip_path, sopranos_path, music_path, beat_map,
         intro_audio = intro_seg.audio.with_start(0)
         audio_clips.append(intro_audio)
 
-    music_dur = min(music.duration, total_sopranos_dur)
-    music_trimmed = music.subclipped(0, music_dur).with_start(beat_drop_in_timeline)
+    music_end = min(music.duration, music_start_offset + total_sopranos_dur)
+    music_trimmed = music.subclipped(music_start_offset, music_end).with_start(beat_drop_in_timeline)
     audio_clips.append(music_trimmed)
 
     if audio_clips:
@@ -171,7 +197,7 @@ def build_timeline(intro_clip_path, sopranos_path, music_path, beat_map,
 
     # --- Write intermediate ---
     os.makedirs(config.INTERMEDIATES_DIR, exist_ok=True)
-    output_path = os.path.join(config.INTERMEDIATES_DIR, "timeline_raw.mp4")
+    output_path = os.path.join(config.INTERMEDIATES_DIR, f"{output_name}.mp4")
 
     print(f"\nWriting intermediate...")
     full_video.write_videofile(
@@ -187,7 +213,7 @@ def build_timeline(intro_clip_path, sopranos_path, music_path, beat_map,
     # --- Save project state ---
     auto_zoom_times = zoom_times if zoom_times else [
         round(beat_drop_in_timeline + total_sopranos_dur * frac, 2)
-        for frac in [0.2, 0.5, 0.8]
+        for frac in [0.15, 0.4, 0.65, 0.85]
     ]
 
     state = {

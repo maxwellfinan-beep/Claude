@@ -10,13 +10,18 @@ import config
 from effects import build_full_filter_chain
 
 
-def export_final(draft=False):
+def export_final(draft=False, output_name=None, style="darkwave", state=None):
     """Export final video with color grade, vignette, zoom punches, and text."""
-    state = config.load_state()
+    if state is None:
+        state = config.load_state()
     input_path = state["intermediate_path"]
     crf = config.CRF_DRAFT if draft else config.CRF_FINAL
-    suffix = "_draft" if draft else "_final"
-    output_path = os.path.join(config.OUTPUT_DIR, f"sopranos{suffix}.mp4")
+
+    if output_name:
+        output_path = os.path.join(config.OUTPUT_DIR, f"{output_name}.mp4")
+    else:
+        suffix = "_draft" if draft else "_final"
+        output_path = os.path.join(config.OUTPUT_DIR, f"sopranos{suffix}.mp4")
 
     os.makedirs(config.OUTPUT_DIR, exist_ok=True)
 
@@ -25,7 +30,7 @@ def export_final(draft=False):
         print("Run edit.py first to assemble the timeline.")
         sys.exit(1)
 
-    filter_chain = build_full_filter_chain(state)
+    filter_chain = build_full_filter_chain(state, style=style)
 
     cmd = [
         config.FFMPEG_BIN,
@@ -44,7 +49,7 @@ def export_final(draft=False):
         output_path,
     ]
 
-    print(f"Exporting {'draft' if draft else 'final'} (CRF {crf})...")
+    print(f"Exporting {'draft' if draft else 'final'} (CRF {crf}, style={style})...")
     print(f"Filter chain preview: {filter_chain[:120]}...")
     print(f"Running ffmpeg...\n")
 
@@ -62,8 +67,12 @@ def main():
     import argparse
     parser = argparse.ArgumentParser(description="Export final video with effects")
     parser.add_argument("--draft", action="store_true", help="Draft quality (CRF 23)")
+    parser.add_argument("--output-name", help="Output filename (without extension)")
+    parser.add_argument("--style", default="darkwave",
+                        choices=["darkwave", "cinematic", "atmospheric"],
+                        help="Effect style preset")
     args = parser.parse_args()
-    export_final(draft=args.draft)
+    export_final(draft=args.draft, output_name=args.output_name, style=args.style)
 
 
 if __name__ == "__main__":
