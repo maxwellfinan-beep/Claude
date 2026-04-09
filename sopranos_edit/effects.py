@@ -27,14 +27,14 @@ STYLES = {
         "punch_duration": 0.2,
     },
     "cinematic": {
-        "contrast": 1.15,
-        "brightness": 0.02,
-        "saturation": 1.1,
-        "colorbalance": "rs=0.05:gs=0.02:bs=-0.03:rm=0.04:gm=0.01:bm=-0.05:rh=0.06:gh=0.03:bh=-0.04",
+        "contrast": 1.28,
+        "brightness": -0.05,
+        "saturation": 1.05,
+        "colorbalance": "rs=-0.04:gs=-0.02:bs=0.08:rm=0.03:gm=0.01:bm=-0.04",
         "vignette_angle": "PI/5",
-        "text_fade_in": 0.4,
-        "text_hold": 2.0,
-        "text_fade_out": 0.5,
+        "text_fade_in": 0.05,
+        "text_hold": 0.4,
+        "text_fade_out": 0.05,
         "text_border": 3,
         "zoom_factor": 1.2,
         "punch_duration": 0.3,
@@ -145,10 +145,47 @@ def build_text_overlay_filter(appear_time, style="darkwave", title_text=None):
     )
 
 
-def build_full_filter_chain(project_state, style="darkwave", title_text=None):
+def build_stat_text_filter(text, appear_time, duration=1.5, style="cinematic"):
+    """Single stat text card — bold, center-bottom third, white with black shadow."""
+    s = STYLES[style]
+    border = s["text_border"]
+    fade_in = 0.15
+    fade_out = 0.15
+    hold = max(0.1, duration - fade_in - fade_out)
+
+    t_start = appear_time
+    t_fade_end = t_start + fade_in
+    t_hold_end = t_fade_end + hold
+    t_end = t_hold_end + fade_out
+
+    alpha_expr = (
+        f"if(lt(t\\,{t_start})\\,0\\,"
+        f"if(lt(t\\,{t_fade_end})\\,(t-{t_start})/{fade_in}\\,"
+        f"if(lt(t\\,{t_hold_end})\\,1\\,"
+        f"if(lt(t\\,{t_end})\\,({t_end}-t)/{fade_out}\\,0))))"
+    )
+
+    return (
+        f"drawtext="
+        f"text='{text}':"
+        f"fontfile={config.FONT_PATH}:"
+        f"fontsize=52:"
+        f"fontcolor=white:"
+        f"borderw={border + 1}:bordercolor=black@0.85:"
+        f"x=(w-text_w)/2:"
+        f"y=h*0.78:"
+        f"alpha='{alpha_expr}':"
+        f"enable='between(t\\,{t_start}\\,{t_end})'"
+    )
+
+
+def build_full_filter_chain(project_state, style="darkwave", title_text=None,
+                             stat_overlays=None):
     """
     Combine all filters into a single -vf string.
-    Order: color grade -> vignette -> zoom punch -> text overlay
+    Order: color grade -> vignette -> zoom punch -> title text -> stat overlays
+
+    stat_overlays: list of (text, appear_time, duration) tuples
     """
     beat_drop = project_state["beat_drop_time"]
     zoom_times = project_state.get("zoom_punch_times", [])
@@ -164,5 +201,10 @@ def build_full_filter_chain(project_state, style="darkwave", title_text=None):
         filters.append(zoom_filter)
 
     filters.append(build_text_overlay_filter(title_time, style, title_text=title_text))
+
+    # Additional stat text overlays
+    if stat_overlays:
+        for (text, appear_time, duration) in stat_overlays:
+            filters.append(build_stat_text_filter(text, appear_time, duration, style))
 
     return ",".join(filters)

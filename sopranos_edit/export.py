@@ -10,7 +10,8 @@ import config
 from effects import build_full_filter_chain
 
 
-def export_final(draft=False, output_name=None, style="darkwave", state=None, title_text=None):
+def export_final(draft=False, output_name=None, style="darkwave", state=None,
+                 title_text=None, stat_overlays=None):
     """Export final video with color grade, vignette, zoom punches, and text."""
     if state is None:
         state = config.load_state()
@@ -30,13 +31,24 @@ def export_final(draft=False, output_name=None, style="darkwave", state=None, ti
         print("Run edit.py first to assemble the timeline.")
         sys.exit(1)
 
-    filter_chain = build_full_filter_chain(state, style=style, title_text=title_text)
+    filter_chain = build_full_filter_chain(state, style=style, title_text=title_text,
+                                           stat_overlays=stat_overlays)
+
+    # Audio: boost intro vocal section (+8dB for first 3.5s so LeBron voice cuts through),
+    # then overall +3dB boost, then normalize to -14 LUFS
+    beat_drop = state.get("beat_drop_time", 3.5)
+    audio_filter = (
+        f"volume=8dB:enable='lt(t,{beat_drop})',"
+        f"volume=3dB,"
+        f"loudnorm=I=-14:TP=-1.5:LRA=7"
+    )
 
     cmd = [
         config.FFMPEG_BIN,
         "-y",
         "-i", input_path,
         "-vf", filter_chain,
+        "-af", audio_filter,
         "-c:v", config.CODEC,
         "-preset", config.PRESET,
         "-crf", str(crf),
@@ -71,8 +83,11 @@ def main():
     parser.add_argument("--style", default="darkwave",
                         choices=["darkwave", "cinematic", "atmospheric"],
                         help="Effect style preset")
+    parser.add_argument("--title-text", default=None,
+                        help="Title text overlay (default: THE SOPRANOS from config)")
     args = parser.parse_args()
-    export_final(draft=args.draft, output_name=args.output_name, style=args.style)
+    export_final(draft=args.draft, output_name=args.output_name, style=args.style,
+                 title_text=args.title_text)
 
 
 if __name__ == "__main__":
