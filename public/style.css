@@ -1,0 +1,183 @@
+/* ── Base ─────────────────────────────────────────────────────────────────── */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100vw; height: 100vh;
+  overflow: hidden;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: #0d0d1a;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: crosshair;
+}
+
+/* ── Loading ─────────────────────────────────────────────────────────────── */
+#loading {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  height: 100vh; color: #ccc; gap: 20px; font-size: 1.1rem;
+}
+.spin-duck {
+  font-size: 5rem;
+  animation: waddle 0.9s ease-in-out infinite alternate;
+}
+@keyframes waddle {
+  from { transform: rotate(-15deg) translateY(0); }
+  to   { transform: rotate(15deg)  translateY(-18px); }
+}
+
+/* ── Layout ──────────────────────────────────────────────────────────────── */
+#app { display: flex; width: 100vw; height: 100vh; }
+
+/* ── World ───────────────────────────────────────────────────────────────── */
+#world { flex: 1; position: relative; overflow: hidden; }
+
+/* Sky */
+#sky {
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg, #2a8fd1 0%, #5bbce4 45%, #a8dff5 100%);
+}
+
+/* Clouds */
+.cloud {
+  position: absolute;
+  width: 96px; height: 34px;
+  background: rgba(255,255,255,0.9);
+  border-radius: 999px;
+  animation: drift var(--dur) linear var(--delay) infinite;
+}
+.cloud::before, .cloud::after {
+  content: ''; position: absolute;
+  background: inherit; border-radius: 50%;
+}
+.cloud::before { width: 50px; height: 50px; top: -26px; left: 14px; }
+.cloud::after  { width: 36px; height: 36px; top: -19px; left: 50px; }
+.cloud.sm { width: 60px; height: 22px; opacity: 0.65; }
+.cloud.sm::before { width: 32px; height: 32px; top: -16px; left: 9px; }
+.cloud.sm::after  { width: 24px; height: 24px; top: -12px; left: 34px; }
+@keyframes drift {
+  from { transform: translateX(-180px); }
+  to   { transform: translateX(calc(100vw + 180px)); }
+}
+
+/* Treeline */
+#treeline {
+  position: absolute; bottom: 12%; left: 0; right: 0; height: 100px;
+  pointer-events: none; z-index: 4;
+  background:
+    radial-gradient(ellipse 48px 72px at  5% 100%, #1e4d0f 0%, transparent 100%),
+    radial-gradient(ellipse 40px 62px at 11% 100%, #27641a 0%, transparent 100%),
+    radial-gradient(ellipse 56px 82px at 20% 100%, #1a4208 0%, transparent 100%),
+    radial-gradient(ellipse 44px 68px at 28% 100%, #1e4d0f 0%, transparent 100%),
+    radial-gradient(ellipse 38px 58px at 36% 100%, #27641a 0%, transparent 100%),
+    radial-gradient(ellipse 52px 78px at 65% 100%, #1e4d0f 0%, transparent 100%),
+    radial-gradient(ellipse 42px 64px at 74% 100%, #27641a 0%, transparent 100%),
+    radial-gradient(ellipse 58px 84px at 83% 100%, #1a4208 0%, transparent 100%),
+    radial-gradient(ellipse 44px 68px at 91% 100%, #1e4d0f 0%, transparent 100%),
+    radial-gradient(ellipse 38px 58px at 97% 100%, #27641a 0%, transparent 100%);
+}
+
+/* Ground */
+#ground {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 12%;
+  background: linear-gradient(180deg, #5ec435 0%, #49b228 35%, #37901a 100%);
+  z-index: 5;
+}
+
+/* Duck layer */
+#ducks { position: absolute; inset: 0; z-index: 10; }
+
+.duck {
+  position: absolute;
+  font-size: 3.4rem;
+  line-height: 1;
+  cursor: crosshair;
+  will-change: transform;
+  filter: drop-shadow(1px 4px 5px rgba(0,0,0,0.4));
+  transition: filter 0.08s;
+  touch-action: manipulation;
+  z-index: 11;
+}
+.duck:hover {
+  filter: drop-shadow(0 0 12px rgba(255,230,0,1)) drop-shadow(0 0 4px rgba(255,200,0,0.8));
+}
+
+/* Effects canvas */
+#fx {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  pointer-events: none; z-index: 20;
+}
+
+/* ── HUD ─────────────────────────────────────────────────────────────────── */
+#hud {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 30;
+  display: flex; align-items: center; gap: 14px; padding: 7px 16px;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(8px);
+  color: #fff;
+}
+#hud-me   { display: flex; gap: 12px; align-items: center; font-weight: 700; }
+#hud-name { color: #ffe066; }
+#hud-score{ color: #80ff90; }
+#hud-kills{ color: #aaa; font-size: 0.85rem; }
+#hud-msg  {
+  flex: 1; text-align: center;
+  font-size: 0.95rem; font-weight: 600;
+  color: rgba(255,255,255,0.65);
+  text-shadow: 0 1px 4px rgba(0,0,0,0.7);
+}
+#hud-msg.pop { color: #ffe066; }
+
+/* ── Leaderboard panel ───────────────────────────────────────────────────── */
+#panel {
+  width: 200px;
+  background: rgba(8,8,24,0.82);
+  backdrop-filter: blur(10px);
+  border-left: 1px solid rgba(255,255,255,0.07);
+  display: flex; flex-direction: column;
+  padding: 10px 8px; gap: 8px; z-index: 30;
+}
+.panel-title {
+  font-size: 0.95rem; font-weight: 800;
+  text-align: center; color: #ffe066;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+#lb { display: flex; flex-direction: column; gap: 5px; overflow-y: auto; }
+
+.row {
+  display: flex; align-items: center; gap: 7px;
+  padding: 6px 8px; border-radius: 8px;
+  background: rgba(255,255,255,0.05);
+  color: #ddd; font-size: 0.85rem;
+}
+.row.me {
+  background: rgba(255,220,0,0.14);
+  border: 1px solid rgba(255,220,0,0.28);
+}
+.row-rank { font-weight: 800; min-width: 22px; text-align: center; }
+.g1 { color: #FFD700; }
+.g2 { color: #C0C0C0; }
+.g3 { color: #CD7F32; }
+.row-name  { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row-score { font-weight: 700; color: #80ff90; }
+
+/* ── Floating popups ─────────────────────────────────────────────────────── */
+.pts-popup {
+  position: absolute; pointer-events: none; z-index: 26;
+  font-size: 1.7rem; font-weight: 900; color: #FFD700;
+  text-shadow: 2px 2px 6px rgba(0,0,0,0.9);
+  animation: floatUp 1.3s ease-out forwards;
+}
+.miss-popup {
+  position: absolute; pointer-events: none; z-index: 26;
+  font-size: 1.1rem; font-weight: 700; color: #ff6b6b;
+  text-shadow: 1px 1px 4px rgba(0,0,0,0.8);
+  animation: floatUp 1.5s ease-out forwards;
+}
+@keyframes floatUp {
+  0%   { opacity: 1; transform: translateY(0)    scale(1); }
+  50%  { opacity: 1; transform: translateY(-48px) scale(1.2); }
+  100% { opacity: 0; transform: translateY(-90px) scale(0.85); }
+}

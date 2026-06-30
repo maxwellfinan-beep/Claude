@@ -1,77 +1,72 @@
-# 🦆 Duck Hunt — Discord Text Channel Game
+# 🦆 Duck Hunt — Discord Activity
 
-A competitive Duck Hunt game that runs in a Discord **text channel**.
-Ducks appear as interactive message embeds with a **🔫 BANG!** button.
-The whole server races to click first — fastest finger wins points.
+A **visual multiplayer Duck Hunt game** that runs inside Discord.
+Ducks fly across the screen — everyone in the session races to click them first.
+Live leaderboard, particle effects, animated clouds and scenery.
 
-## How it works
+Works in **text channels AND voice channels**.
 
-1. A duck randomly appears in `#duck-hunt` as a message with a button
-2. Everyone sees it — **first to click 🔫 BANG! wins the points**
-3. The button locks after the first click (others see "Too slow!")
-4. If nobody clicks in time, the duck flies away
-5. Scores are saved permanently in a local database
+## How to play
+
+1. In a text channel, click **+** → **Use an App** → Duck Hunt
+   *(or in a voice channel, click the Activities rocket icon)*
+2. The game launches inside Discord — no browser needed
+3. Ducks randomly fly across the screen — **click one to shoot it**
+4. First click wins the points — faster/rarer ducks are worth more
+5. Watch the live leaderboard on the right
 
 ## Duck types
 
-| Duck | Points | Time window | Rarity |
-|------|--------|-------------|--------|
-| 🦆 Common Duck  | 1 pt   | 15 s | 60 % |
-| 🐥 Baby Duck    | 2 pts  | 12 s | 25 % |
-| 🦅 Golden Eagle | 5 pts  | 8 s  | 10 % |
-| 👑 Royal Duck   | 10 pts | 5 s  | 5 %  |
-
-Rarer ducks are worth more but vanish faster — reaction time matters!
-
-## Commands
-
-| Command | Description |
-|---------|-------------|
-| `/leaderboard` | Server-wide leaderboard (top 10) |
-| `/stats` | Your personal score, kills, avg, and rank |
-| `/duckhelp` | Rules and duck type guide |
+| | Name | Points | Speed | Rarity |
+|-|------|--------|-------|--------|
+| 🦆 | Common Duck  | 1  | Normal    | 60% |
+| 🐥 | Baby Duck    | 2  | Fast      | 25% |
+| 🦅 | Golden Eagle | 5  | Very fast | 10% |
+| 👑 | Royal Duck   | 10 | Blazing   | 5%  |
 
 ## Setup
 
-### 1. Create a Discord bot
+### 1. Developer Portal
 
-1. Go to [discord.com/developers/applications](https://discord.com/developers/applications)
-2. **New Application** → give it a name
-3. Go to **Bot** → **Add Bot** → copy the **Token**
-4. Under **Privileged Gateway Intents** → no special intents needed
-5. Go to **OAuth2 → URL Generator**:
-   - Scopes: `bot` + `applications.commands`
-   - Bot Permissions: `Send Messages`, `Embed Links`, `Read Message History`, `View Channels`
-6. Open the generated URL to invite the bot to your server
+1. [discord.com/developers/applications](https://discord.com/developers/applications) → your app (or New Application)
+2. Copy the **Application ID** → this is your `DISCORD_CLIENT_ID`
+3. **OAuth2** → copy the **Client Secret** → `DISCORD_CLIENT_SECRET`
+4. **Activities** (left sidebar) → enable Activities
+5. Under **URL Mappings**, add:
+   - Prefix: `/`
+   - Target: `localhost:3000`
 
-### 2. Create the channel
+### 2. HTTPS tunnel (required for local dev)
 
-Make a text channel named exactly `duck-hunt` (or set `DUCK_CHANNEL` env var).
-
-### 3. Run
+Discord requires HTTPS. Install [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) then:
 
 ```bash
-pip install -r requirements.txt
-export DISCORD_TOKEN=your-token-here
-python bot.py
+cloudflared tunnel --url http://localhost:3000
 ```
 
-Or copy `.env.example` → `.env`, fill in your token, then:
+Copy the `https://xxxxx.trycloudflare.com` URL.
+Go back to **Activities → URL Mappings** and set that as the target.
+
+### 3. Install & run
 
 ```bash
-pip install python-dotenv
-# add: from dotenv import load_dotenv; load_dotenv()  at top of bot.py
-python bot.py
+npm install
+cp .env.example .env
+# fill in DISCORD_CLIENT_ID and DISCORD_CLIENT_SECRET in .env
+npm start
 ```
 
-## Configuration
+### 4. Launch in Discord
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DISCORD_TOKEN` | *(required)* | Your bot token |
-| `DUCK_CHANNEL` | `duck-hunt` | Channel name for duck spawns |
-| `DUCK_SPAWN_MIN` | `20` | Min seconds between spawns |
-| `DUCK_SPAWN_MAX` | `120` | Max seconds between spawns |
-| `DB_PATH` | `scores.db` | SQLite database path |
+- Join a text channel → click **+** next to the message box → **Use an App**
+- Or join a voice channel → click the **🚀 Activities** button
+- Select **Duck Hunt**
 
-Scores are stored per-server and persist across restarts.
+## Tech stack
+
+| Part | Tech |
+|------|------|
+| Server | Node.js + Express + Socket.io |
+| Client | Vanilla JS + HTML5 Canvas (no build step) |
+| Auth | Discord Embedded App SDK |
+| Storage | In-memory per session |
