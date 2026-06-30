@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>🦆 Duck Hunt</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Loading screen -->
+  <div id="loading">
+    <div class="bounce-duck">🦆</div>
+    <p>Loading Duck Hunt…</p>
+  </div>
+
+  <!-- Main game (hidden until auth done) -->
+  <div id="app" hidden>
+
+    <!-- Left: game world -->
+    <div id="game-area">
+      <div id="sky">
+        <div class="cloud" style="top:8%;left:5%;animation-duration:22s;animation-delay:0s"></div>
+        <div class="cloud" style="top:18%;left:38%;animation-duration:28s;animation-delay:-9s"></div>
+        <div class="cloud" style="top:6%;left:68%;animation-duration:19s;animation-delay:-14s"></div>
+        <div class="cloud c2" style="top:25%;left:20%;animation-duration:25s;animation-delay:-6s"></div>
+      </div>
+
+      <!-- Ducks live here -->
+      <div id="duck-layer"></div>
+
+      <!-- Particle / BANG canvas -->
+      <canvas id="fx"></canvas>
+
+      <div id="trees"></div>
+      <div id="ground"></div>
+
+      <!-- HUD bar -->
+      <div id="hud">
+        <div id="hud-left">
+          <span id="hud-name">Player</span>
+          <span id="hud-pts">0 pts</span>
+          <span id="hud-kills">0 kills</span>
+        </div>
+        <div id="hud-status">Waiting for ducks…</div>
+      </div>
+    </div>
+
+    <!-- Right: leaderboard -->
+    <div id="sidebar">
+      <div id="lb-title">🏆 Leaderboard</div>
+      <div id="lb-list"></div>
+    </div>
+
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script type="module" src="game.js"></script>
+</body>
+</html>
